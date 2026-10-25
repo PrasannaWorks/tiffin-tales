@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiffin Tales | Order Online</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="brand">
+        <span class="logo">TT</span>
+        <div>
+          <h1>Tiffin Tales</h1>
+          <p class="tagline">Home-style South Indian food, delivered hot</p>
+        </div>
+      </div>
+      <a class="cart-link" href="#cart">Cart <span id="cart-count">0</span></a>
+    </header>
+
+    <section class="hero">
+      <h2>Hungry? Order in three taps.</h2>
+      <p>Free delivery above ₹499. Use code <b>TIFFIN10</b> for 10% off.</p>
+    </section>
+
+    <main class="layout">
+      <section class="menu-area">
+        <div class="toolbar">
+          <input
+            type="search"
+            id="search"
+            placeholder="Search dishes, e.g. dosa, idli, filter coffee"
+          />
+          <select id="sort">
+            <option value="default">Sort: Default</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="rating">Top Rated</option>
+          </select>
+          <label class="veg-toggle">
+            <input type="checkbox" id="veg-only" /> Veg only
+          </label>
+        </div>
+
+        <div class="chips" id="chips">
+          <button class="chip active" data-cat="all">All</button>
+          <button class="chip" data-cat="breakfast">Breakfast</button>
+          <button class="chip" data-cat="meals">Meals</button>
+          <button class="chip" data-cat="snacks">Snacks</button>
+          <button class="chip" data-cat="drinks">Drinks</button>
+        </div>
+
+        <p class="result-info" id="result-info"></p>
+        <ul class="menu-grid" id="menu-grid"></ul>
+      </section>
+
+      <aside class="cart" id="cart">
+        <h2>Your order</h2>
+        <ul class="cart-list" id="cart-list"></ul>
+
+        <form class="coupon-form" id="coupon-form">
+          <input type="text" id="coupon-input" placeholder="Coupon code" />
+          <button type="submit">Apply</button>
+        </form>
+
+        <p class="coupon-msg" id="coupon-msg"></p>
+        <dl class="bill" id="bill"></dl>
+
+        <form class="checkout-form" id="checkout-form" novalidate>
+          <h3>Delivery details</h3>
+
+          <label for="name">Name</label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            placeholder="Your full name"
+          />
+          <small class="error" data-error-for="name"></small>
+
+          <label for="phone">Phone</label>
+          <input
+            type="tel"
+            id="phone"
+            name="phone"
+            inputmode="numeric"
+            placeholder="10-digit mobile number"
+          />
+          <small class="error" data-error-for="phone"></small>
+
+          <label for="address">Address</label>
+          <textarea
+            id="address"
+            name="address"
+            rows="2"
+            placeholder="House no., street, area"
+          ></textarea>
+          <small class="error" data-error-for="address"></small>
+
+          <button type="submit" class="place-btn" id="place-btn">
+            Place order
+          </button>
+        </form>
+      </aside>
+    </main>
+
+    <section class="confirmation" id="confirmation" hidden></section>
+
+    <footer class="site-footer">
+      <p>© 2026 Tiffin Tales · Built by Prasanna</p>
+    </footer>
+  </body>
+</html>
