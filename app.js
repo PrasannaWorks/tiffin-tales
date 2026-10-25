@@ -208,4 +208,11 @@ cartList.addEventListener("click", (e) => {
   render();
 });
 
+// ===== 8.2 The coupon form =====
+couponForm.addEventListener("submit", (e) => {
+  e.preventDefault(); // stop the browser from reloading the page
+  state.coupon = couponInput.value.trim().toUpperCase();
+  render();
+});
+
 render();
