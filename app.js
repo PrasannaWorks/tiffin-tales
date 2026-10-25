@@ -9,6 +9,16 @@ import {
   makeOrderId,
 } from "./utils.js";
 
+// ===== 6.1 State: everything that can change lives in one object =====
+const state = {
+  category: "all",
+  vegOnly: false,
+  query: "",
+  sort: "default",
+  cart: [], // [{ id, qty }], used in the next phase
+  coupon: "", // coupon code typed by the user, used in the next phase
+};
+
 // ===== 5.1 Find every element once =====
 const searchInput = document.querySelector("#search");
 const sortSelect = document.querySelector("#sort");
@@ -27,6 +37,30 @@ const bill = document.querySelector("#bill");
 const checkoutForm = document.querySelector("#checkout-form");
 const placeBtn = document.querySelector("#place-btn");
 const confirmation = document.querySelector("#confirmation");
+
+// ===== 6.1 visibleItems: the list to show, worked out from state =====
+function visibleItems() {
+  const query = state.query.trim().toLowerCase();
+
+  const list = menu
+    .filter(
+      (dish) => state.category === "all" || dish.category === state.category,
+    )
+    .filter((dish) => !state.vegOnly || dish.veg)
+    .filter((dish) => dish.name.toLowerCase().includes(query));
+
+  // sort a copy, never the original list
+  switch (state.sort) {
+    case "price-low":
+      return [...list].sort((a, b) => a.price - b.price);
+    case "price-high":
+      return [...list].sort((a, b) => b.price - a.price);
+    case "rating":
+      return [...list].sort((a, b) => b.rating - a.rating);
+    default:
+      return list;
+  }
+}
 
 // ===== 5.2 dishHTML: one card from one dish =====
 function dishHTML(item) {
@@ -50,15 +84,49 @@ function dishHTML(item) {
   `;
 }
 
-console.log(dishHTML(menu[6])); // 5.2 test (delete after checking)
-
-// ===== 5.3 renderMenu: all the cards =====
-function renderMenu(list = menu) {
+// ===== 5.3 + 6.2 renderMenu: cards and the active chip =====
+function renderMenu() {
+  const list = visibleItems();
   resultInfo.textContent = `Showing ${list.length} of ${menu.length} dishes`;
 
   menuGrid.innerHTML = list.length
     ? list.map(dishHTML).join("")
     : `<li class="empty">No dishes match your search.</li>`;
+
+  chips.querySelectorAll(".chip").forEach((chip) => {
+    chip.classList.toggle("active", chip.dataset.cat === state.category);
+  });
 }
 
-renderMenu();
+// ===== 6.2 render: one place that redraws everything =====
+function render() {
+  renderMenu();
+  // later phases will add renderCart() etc. here
+}
+
+// ===== 6.3 Four listeners, one pattern: change state, then render() =====
+searchInput.addEventListener("input", (e) => {
+  state.query = e.target.value;
+  render();
+});
+
+sortSelect.addEventListener("change", (e) => {
+  state.sort = e.target.value;
+  render();
+});
+
+vegOnly.addEventListener("change", (e) => {
+  state.vegOnly = e.target.checked;
+  render();
+});
+
+// one listener on the parent (event delegation)
+chips.addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+
+  state.category = chip.dataset.cat;
+  render();
+});
+
+render();
