@@ -1,36 +1,70 @@
-// app.js (top of the file)
+// app.js: temporary Phase 4 tests (delete everything except the menu import after this phase)
 import menu, { coupons } from "./menu.js";
+import {
+  formatPrice,
+  findItem,
+  spiceDots,
+  getDiscount,
+  calcBill,
+  validateOrder,
+  makeOrderId,
+} from "./utils.js";
 
-console.log(menu);
-console.log(coupons);
-console.log(Object.keys(coupons).length); // 3.2 check: number of coupon keys
+// 4.1
+console.log(formatPrice(1250)); // 1
+console.log(formatPrice(90)); // 2
 
-// ===== 3.3 Answer 8 questions with array methods =====
+// 4.2
+console.log(findItem(menu, 9).name); // 1
+console.log(spiceDots(2)); // 2
+console.log(spiceDots()); // 3
+console.log(findItem(menu, 99)); // 4
 
-// a. How many dishes are on the menu?
-console.log(menu.length);
+// 4.3
+console.log(getDiscount(600, "TIFFIN10", coupons).amount); // 1
+console.log(getDiscount(1500, "TIFFIN10", coupons).amount); // 2
+console.log(getDiscount(170, "FIRST50", coupons).message); // 3
+console.log(getDiscount(400, "SAVE99", coupons).message); // 4
 
-// b. How many are vegetarian?
-console.log(menu.filter((d) => d.veg).length);
+// 4.4
+const cartA = [
+  { id: 1, qty: 2 },
+  { id: 10, qty: 2 },
+]; // 2 dosa, 2 coffee
+const cartB = [
+  { id: 4, qty: 2 },
+  { id: 9, qty: 1 },
+]; // 2 biryani, 1 chicken 65
+const cartC = [
+  { id: 8, qty: 3 },
+  { id: 11, qty: 2 },
+]; // 3 samosa, 2 chai
 
-// c. NAMES of dishes that are out of stock
-//    (assumes the stock field is called `inStock`; change it if yours differs)
-console.log(menu.filter((d) => !d.inStock).map((d) => d.name));
+console.log(calcBill(cartA, menu)); // A
+console.log(calcBill(cartB, menu, "TIFFIN10", coupons)); // B
+console.log(calcBill(cartC, menu, "FIRST50", coupons)); // C
+console.log(calcBill([], menu)); // D
 
-// d. Total of all 12 prices
-console.log(menu.reduce((sum, d) => sum + d.price, 0));
+// 4.5
+console.log(
+  validateOrder({ name: "Ra", phone: "98765", address: "Gandhipuram" }),
+);
+console.log(
+  validateOrder({
+    name: "Ravi Kumar",
+    phone: "98765 43210",
+    address: "12 Gandhipuram, Coimbatore",
+  }),
+);
+console.log(
+  validateOrder({
+    name: "Ravi Kumar",
+    phone: "9876543210",
+    address: "12 Gandhipuram, Coimbatore",
+  }),
+);
 
-// e. NAME of the most expensive dish
-console.log(menu.reduce((max, d) => (d.price > max.price ? d : max)).name);
-
-// f. NAMES of dishes with spice level 2 or more (some have no spice object)
-//    (assumes spice looks like { level: 2 }; change `level` if yours differs)
-console.log(menu.filter((d) => d.spice?.level >= 2).map((d) => d.name));
-
-// g. Badge of dish id 6, and of dish id 2 ("none" if it has no badge)
-console.log(menu.find((d) => d.id === 6)?.badge ?? "none");
-console.log(menu.find((d) => d.id === 2)?.badge ?? "none");
-
-// h. Destructure name and price out of menu[3]
-const { name, price } = menu[3];
-console.log(name, price);
+// 4.6
+console.log(makeOrderId("ravi kumar", 7)); // 1
+console.log(makeOrderId("  Priya  ", 12)); // 2
+console.log(makeOrderId("anu mary joseph", 125)); // 3
