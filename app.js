@@ -16,7 +16,8 @@ const state = {
   query: "",
   sort: "default",
   cart: [], // [{ id, qty }]
-  coupon: "", // coupon code typed by the user, used in the next phase
+  coupon: "", // coupon code typed by the user
+  orderCount: 0, // how many orders were placed (used for the order id)
 };
 
 // ===== 5.1 Find every element once =====
@@ -35,6 +36,9 @@ const couponMsg = document.querySelector("#coupon-msg");
 const bill = document.querySelector("#bill");
 
 const checkoutForm = document.querySelector("#checkout-form");
+const nameInput = document.querySelector("#name");
+const phoneInput = document.querySelector("#phone");
+const addressInput = document.querySelector("#address");
 const placeBtn = document.querySelector("#place-btn");
 const confirmation = document.querySelector("#confirmation");
 
@@ -161,6 +165,37 @@ function render() {
   renderCart();
 }
 
+// ===== 9.4 showConfirmation: built with createElement (no innerHTML) =====
+function showConfirmation(order) {
+  const box = document.createElement("div");
+  box.className = "confirm-box";
+
+  const title = document.createElement("h2");
+  title.textContent = "Order placed!";
+
+  const orderId = document.createElement("p");
+  orderId.className = "order-id";
+  orderId.textContent = order.id;
+
+  // textContent keeps anything the user typed as plain text, so it can't inject HTML
+  const thanks = document.createElement("p");
+  thanks.textContent =
+    `Thank you, ${order.name}! Your total is ${formatPrice(order.bill.total)}. ` +
+    `We are delivering to ${order.address}.`;
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.textContent = "Close";
+  closeBtn.addEventListener("click", () => {
+    confirmation.hidden = true;
+    box.remove();
+  });
+
+  box.append(title, orderId, thanks, closeBtn);
+  confirmation.append(box);
+  confirmation.hidden = false;
+}
+
 // ===== 6.3 Four listeners, one pattern: change state, then render() =====
 searchInput.addEventListener("input", (e) => {
   state.query = e.target.value;
@@ -194,8 +229,6 @@ menuGrid.addEventListener("click", (e) => {
   const id = Number(btn.closest(".dish").dataset.id);
   changeQty(id, 1);
   render();
-
-  console.log(JSON.stringify(state.cart)); // 7.2 test (delete after checking)
 });
 
 // ===== 7.4 The + and - buttons (delegation on the cart list) =====
@@ -213,6 +246,54 @@ couponForm.addEventListener("submit", (e) => {
   e.preventDefault(); // stop the browser from reloading the page
   state.coupon = couponInput.value.trim().toUpperCase();
   render();
+});
+
+// ===== 9.2 + 9.4 Validate on submit, show errors, place the order =====
+checkoutForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const details = {
+    name: nameInput.value,
+    phone: phoneInput.value,
+    address: addressInput.value,
+  };
+
+  const errors = validateOrder(details);
+
+  // show (or clear) the message under every field
+  checkoutForm.querySelectorAll(".error").forEach((small) => {
+    const field = small.dataset.errorFor; // data-error-for becomes errorFor
+    small.textContent = errors[field] ?? "";
+    document
+      .querySelector(`#${field}`)
+      .classList.toggle("invalid", field in errors);
+  });
+
+  if (Object.keys(errors).length > 0) return; // stop if anything is wrong
+
+  state.orderCount++;
+
+  const order = {
+    ...details,
+    id: makeOrderId(details.name, state.orderCount),
+    items: state.cart.map((line) => ({ ...line })), // a copy, not a reference to the cart
+    bill: calcBill(state.cart, menu, state.coupon, coupons),
+  };
+
+  showConfirmation(order);
+
+  state.cart = [];
+  state.coupon = "";
+  couponInput.value = "";
+  checkoutForm.reset();
+  render();
+});
+
+// ===== 9.3 Clear an error while the user types (one listener on the form) =====
+checkoutForm.addEventListener("input", (e) => {
+  const small = checkoutForm.querySelector(`[data-error-for="${e.target.id}"]`);
+  if (small) small.textContent = "";
+  e.target.classList.remove("invalid");
 });
 
 render();
