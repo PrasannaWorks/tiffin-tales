@@ -1,70 +1,64 @@
-// app.js: temporary Phase 4 tests (delete everything except the menu import after this phase)
+// app.js: the brain of the website. Data -> state -> render -> events.
 import menu, { coupons } from "./menu.js";
 import {
   formatPrice,
   findItem,
   spiceDots,
-  getDiscount,
   calcBill,
   validateOrder,
   makeOrderId,
 } from "./utils.js";
 
-// 4.1
-console.log(formatPrice(1250)); // 1
-console.log(formatPrice(90)); // 2
+// ===== 5.1 Find every element once =====
+const searchInput = document.querySelector("#search");
+const sortSelect = document.querySelector("#sort");
+const vegOnly = document.querySelector("#veg-only");
+const chips = document.querySelector("#chips");
+const resultInfo = document.querySelector("#result-info");
+const menuGrid = document.querySelector("#menu-grid");
 
-// 4.2
-console.log(findItem(menu, 9).name); // 1
-console.log(spiceDots(2)); // 2
-console.log(spiceDots()); // 3
-console.log(findItem(menu, 99)); // 4
+const cartCount = document.querySelector("#cart-count");
+const cartList = document.querySelector("#cart-list");
+const couponForm = document.querySelector("#coupon-form");
+const couponInput = document.querySelector("#coupon-input");
+const couponMsg = document.querySelector("#coupon-msg");
+const bill = document.querySelector("#bill");
 
-// 4.3
-console.log(getDiscount(600, "TIFFIN10", coupons).amount); // 1
-console.log(getDiscount(1500, "TIFFIN10", coupons).amount); // 2
-console.log(getDiscount(170, "FIRST50", coupons).message); // 3
-console.log(getDiscount(400, "SAVE99", coupons).message); // 4
+const checkoutForm = document.querySelector("#checkout-form");
+const placeBtn = document.querySelector("#place-btn");
+const confirmation = document.querySelector("#confirmation");
 
-// 4.4
-const cartA = [
-  { id: 1, qty: 2 },
-  { id: 10, qty: 2 },
-]; // 2 dosa, 2 coffee
-const cartB = [
-  { id: 4, qty: 2 },
-  { id: 9, qty: 1 },
-]; // 2 biryani, 1 chicken 65
-const cartC = [
-  { id: 8, qty: 3 },
-  { id: 11, qty: 2 },
-]; // 3 samosa, 2 chai
+// ===== 5.2 dishHTML: one card from one dish =====
+function dishHTML(item) {
+  const { id, name, price, veg, rating, inStock } = item;
+  const badge = item.badge ?? "";
+  const level = item.spice?.level ?? 0;
 
-console.log(calcBill(cartA, menu)); // A
-console.log(calcBill(cartB, menu, "TIFFIN10", coupons)); // B
-console.log(calcBill(cartC, menu, "FIRST50", coupons)); // C
-console.log(calcBill([], menu)); // D
+  return `
+    <li class="dish${inStock ? "" : " sold-out"}" data-id="${id}">
+      <div class="dish-top">
+        <span class="diet ${veg ? "veg" : "nonveg"}" title="${veg ? "Veg" : "Non-veg"}"></span>
+        ${badge ? `<span class="badge">${badge}</span>` : ""}
+      </div>
+      <h3>${name}</h3>
+      <p class="meta">★ ${rating.toFixed(1)} · <span class="spice">${spiceDots(level)}</span></p>
+      <div class="dish-bottom">
+        <span class="price">${formatPrice(price)}</span>
+        <button class="add-btn"${inStock ? "" : " disabled"}>${inStock ? "Add" : "Sold out"}</button>
+      </div>
+    </li>
+  `;
+}
 
-// 4.5
-console.log(
-  validateOrder({ name: "Ra", phone: "98765", address: "Gandhipuram" }),
-);
-console.log(
-  validateOrder({
-    name: "Ravi Kumar",
-    phone: "98765 43210",
-    address: "12 Gandhipuram, Coimbatore",
-  }),
-);
-console.log(
-  validateOrder({
-    name: "Ravi Kumar",
-    phone: "9876543210",
-    address: "12 Gandhipuram, Coimbatore",
-  }),
-);
+console.log(dishHTML(menu[6])); // 5.2 test (delete after checking)
 
-// 4.6
-console.log(makeOrderId("ravi kumar", 7)); // 1
-console.log(makeOrderId("  Priya  ", 12)); // 2
-console.log(makeOrderId("anu mary joseph", 125)); // 3
+// ===== 5.3 renderMenu: all the cards =====
+function renderMenu(list = menu) {
+  resultInfo.textContent = `Showing ${list.length} of ${menu.length} dishes`;
+
+  menuGrid.innerHTML = list.length
+    ? list.map(dishHTML).join("")
+    : `<li class="empty">No dishes match your search.</li>`;
+}
+
+renderMenu();
