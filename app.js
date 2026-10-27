@@ -1,26 +1,30 @@
-// app.js: the brain of the website. Data -> state -> render -> events.
-import menu, { coupons } from "./menu.js";
-import {
-  formatPrice,
-  findItem,
-  spiceDots,
-  calcBill,
-  validateOrder,
-  makeOrderId,
-} from "./utils.js";
+import { formatPrice, findItem, spiceDots, validateOrder } from "./utils.js";
+import { fetchMenu, fetchQuote, placeOrder } from "./api.js";
 
-// ===== 6.1 State: everything that can change lives in one object =====
+// The menu now comes from the backend (loaded in init() at the bottom).
+let menu = [];
+const EMPTY_BILL = {
+  itemCount: 0,
+  subtotal: 0,
+  discount: 0,
+  gst: 0,
+  delivery: 0,
+  total: 0,
+  message: "",
+};
 const state = {
   category: "all",
   vegOnly: false,
   query: "",
   sort: "default",
-  cart: [], // [{ id, qty }]
-  coupon: "", // coupon code typed by the user
-  orderCount: 0, // how many orders were placed (used for the order id)
+  cart: [],
+  coupon: "",
+  bill: EMPTY_BILL, // calculated by the server
+  loading: true,
+  loadError: "",
+  placing: false,
 };
 
-// ===== 5.1 Find every element once =====
 const searchInput = document.querySelector("#search");
 const sortSelect = document.querySelector("#sort");
 const vegOnly = document.querySelector("#veg-only");
@@ -42,7 +46,6 @@ const addressInput = document.querySelector("#address");
 const placeBtn = document.querySelector("#place-btn");
 const confirmation = document.querySelector("#confirmation");
 
-// ===== 6.1 visibleItems: the list to show, worked out from state =====
 function visibleItems() {
   const query = state.query.trim().toLowerCase();
 
@@ -53,7 +56,6 @@ function visibleItems() {
     .filter((dish) => !state.vegOnly || dish.veg)
     .filter((dish) => dish.name.toLowerCase().includes(query));
 
-  // sort a copy, never the original list
   switch (state.sort) {
     case "price-low":
       return [...list].sort((a, b) => a.price - b.price);
@@ -65,8 +67,6 @@ function visibleItems() {
       return list;
   }
 }
-
-// ===== 7.1 changeQty: one function for add, + and - =====
 function changeQty(id, change) {
   const line = state.cart.find((l) => l.id === id);
 
@@ -76,11 +76,8 @@ function changeQty(id, change) {
     state.cart.push({ id, qty: 1 });
   }
 
-  // remove every line whose qty dropped to 0
   state.cart = state.cart.filter((l) => l.qty > 0);
 }
-
-// ===== 5.2 dishHTML: one card from one dish =====
 function dishHTML(item) {
   const { id, name, price, veg, rating, inStock } = item;
   const badge = item.badge ?? "";
@@ -102,8 +99,15 @@ function dishHTML(item) {
   `;
 }
 
-// ===== 5.3 + 6.2 renderMenu: cards and the active chip =====
 function renderMenu() {
+  if (state.loading || state.loadError) {
+    resultInfo.textContent = "";
+    menuGrid.innerHTML = `<li class="empty">${
+      state.loading ? "Loading menu…" : state.loadError
+    }</li>`;
+    return;
+  }
+
   const list = visibleItems();
 
   resultInfo.textContent = `Showing ${list.length} of ${menu.length} dishes`;
@@ -117,7 +121,6 @@ function renderMenu() {
   });
 }
 
-// ===== 7.3 cartItemHTML and renderCart: rows, bill and badge =====
 function cartItemHTML({ id, qty }) {
   const { name, price } = findItem(menu, id);
 
@@ -136,7 +139,7 @@ function cartItemHTML({ id, qty }) {
 
 function renderCart() {
   const { itemCount, subtotal, discount, gst, delivery, total, message } =
-    calcBill(state.cart, menu, state.coupon, coupons);
+    state.bill;
   const isEmpty = state.cart.length === 0;
 
   cartCount.textContent = itemCount;
@@ -156,16 +159,39 @@ function renderCart() {
     <dt class="total">Total</dt><dd class="total">${formatPrice(total)}</dd>
   `;
 
-  placeBtn.disabled = isEmpty;
+  placeBtn.disabled = isEmpty || state.placing;
+  placeBtn.textContent = state.placing ? "Placing order…" : "Place order";
 }
-
-// ===== 6.2 render: one place that redraws everything =====
 function render() {
   renderMenu();
   renderCart();
 }
 
-// ===== 9.4 showConfirmation: built with createElement (no innerHTML) =====
+// Ask the server for the bill whenever the cart or coupon changes.
+// A request counter makes sure an older, slower answer never overwrites a newer one.
+let quoteRequestId = 0;
+async function refreshBill() {
+  const myId = ++quoteRequestId;
+  if (state.cart.length === 0) {
+    state.bill = EMPTY_BILL;
+    return render();
+  }
+  try {
+    const bill = await fetchQuote(state.cart, state.coupon);
+    if (myId !== quoteRequestId) return;
+    state.bill = bill;
+  } catch (err) {
+    if (myId !== quoteRequestId) return;
+    state.bill = { ...state.bill, message: err.message };
+  }
+  render();
+}
+
+// Shows a general (non-field) problem just above the Place order button
+const orderError = document.createElement("p");
+orderError.className = "coupon-msg";
+placeBtn.before(orderError);
+
 function showConfirmation(order) {
   const box = document.createElement("div");
   box.className = "confirm-box";
@@ -176,8 +202,6 @@ function showConfirmation(order) {
   const orderId = document.createElement("p");
   orderId.className = "order-id";
   orderId.textContent = order.id;
-
-  // textContent keeps anything the user typed as plain text, so it can't inject HTML
   const thanks = document.createElement("p");
   thanks.textContent =
     `Thank you, ${order.name}! Your total is ${formatPrice(order.bill.total)}. ` +
@@ -196,7 +220,6 @@ function showConfirmation(order) {
   confirmation.hidden = false;
 }
 
-// ===== 6.3 Four listeners, one pattern: change state, then render() =====
 searchInput.addEventListener("input", (e) => {
   state.query = e.target.value;
   render();
@@ -211,8 +234,6 @@ vegOnly.addEventListener("change", (e) => {
   state.vegOnly = e.target.checked;
   render();
 });
-
-// one listener on the parent (event delegation)
 chips.addEventListener("click", (e) => {
   const chip = e.target.closest(".chip");
   if (!chip) return;
@@ -220,8 +241,6 @@ chips.addEventListener("click", (e) => {
   state.category = chip.dataset.cat;
   render();
 });
-
-// ===== 7.2 The Add buttons (delegation on the grid) =====
 menuGrid.addEventListener("click", (e) => {
   const btn = e.target.closest(".add-btn");
   if (!btn) return;
@@ -229,9 +248,8 @@ menuGrid.addEventListener("click", (e) => {
   const id = Number(btn.closest(".dish").dataset.id);
   changeQty(id, 1);
   render();
+  refreshBill();
 });
-
-// ===== 7.4 The + and - buttons (delegation on the cart list) =====
 cartList.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-action]");
   if (!btn) return;
@@ -239,18 +257,19 @@ cartList.addEventListener("click", (e) => {
   const id = Number(btn.closest("li").dataset.id);
   changeQty(id, btn.dataset.action === "inc" ? 1 : -1);
   render();
+  refreshBill();
 });
 
-// ===== 8.2 The coupon form =====
 couponForm.addEventListener("submit", (e) => {
-  e.preventDefault(); // stop the browser from reloading the page
+  e.preventDefault();
   state.coupon = couponInput.value.trim().toUpperCase();
-  render();
+  refreshBill();
 });
 
-// ===== 9.2 + 9.4 Validate on submit, show errors, place the order =====
-checkoutForm.addEventListener("submit", (e) => {
+checkoutForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (state.placing) return;
+  orderError.textContent = "";
 
   const details = {
     name: nameInput.value,
@@ -258,42 +277,63 @@ checkoutForm.addEventListener("submit", (e) => {
     address: addressInput.value,
   };
 
+  function showFieldErrors(errors) {
+    checkoutForm.querySelectorAll(".error").forEach((small) => {
+      const field = small.dataset.errorFor;
+      small.textContent = errors[field] ?? "";
+      document
+        .querySelector(`#${field}`)
+        .classList.toggle("invalid", field in errors);
+    });
+  }
+
+  // Quick check in the browser first, the server checks again
   const errors = validateOrder(details);
+  showFieldErrors(errors);
+  if (Object.keys(errors).length > 0) return;
 
-  // show (or clear) the message under every field
-  checkoutForm.querySelectorAll(".error").forEach((small) => {
-    const field = small.dataset.errorFor; // data-error-for becomes errorFor
-    small.textContent = errors[field] ?? "";
-    document
-      .querySelector(`#${field}`)
-      .classList.toggle("invalid", field in errors);
-  });
+  state.placing = true;
+  renderCart();
 
-  if (Object.keys(errors).length > 0) return; // stop if anything is wrong
+  try {
+    const order = await placeOrder(details, state.cart, state.coupon);
+    showConfirmation(order);
 
-  state.orderCount++;
-
-  const order = {
-    ...details,
-    id: makeOrderId(details.name, state.orderCount),
-    items: state.cart.map((line) => ({ ...line })), // a copy, not a reference to the cart
-    bill: calcBill(state.cart, menu, state.coupon, coupons),
-  };
-
-  showConfirmation(order);
-
-  state.cart = [];
-  state.coupon = "";
-  couponInput.value = "";
-  checkoutForm.reset();
-  render();
+    state.cart = [];
+    state.coupon = "";
+    state.bill = EMPTY_BILL;
+    couponInput.value = "";
+    checkoutForm.reset();
+  } catch (err) {
+    if (err.fields && Object.keys(err.fields).length > 0) {
+      showFieldErrors(err.fields);
+    } else {
+      orderError.textContent = err.message;
+    }
+    // Stock or prices may have changed, so reload the menu and the bill
+    loadMenu();
+    refreshBill();
+  } finally {
+    state.placing = false;
+    render();
+  }
 });
-
-// ===== 9.3 Clear an error while the user types (one listener on the form) =====
 checkoutForm.addEventListener("input", (e) => {
   const small = checkoutForm.querySelector(`[data-error-for="${e.target.id}"]`);
   if (small) small.textContent = "";
   e.target.classList.remove("invalid");
 });
 
+async function loadMenu() {
+  try {
+    menu = await fetchMenu();
+    state.loadError = "";
+  } catch (err) {
+    state.loadError = err.message;
+  }
+  state.loading = false;
+  render();
+}
+
 render();
+loadMenu();

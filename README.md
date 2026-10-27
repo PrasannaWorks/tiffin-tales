@@ -2,7 +2,7 @@
 
 A food-ordering website for a South Indian café, built with HTML, CSS and JavaScript (no frameworks).
 
-**Live site:** https://YOUR-NAME.github.io/tiffin-tales/
+**Live site:** https://prasannaworks.github.io/tiffin-tales/
 
 ## Features
 
